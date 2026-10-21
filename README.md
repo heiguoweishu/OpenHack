@@ -1,5 +1,7 @@
 # OpenHack
 
+[English](README.en.md) | **简体中文**
+
 **Windows 上的黑苹果（Hackintosh）图形化装机工具。** 扫描本机硬件 → 判定 macOS 兼容性 →
 生成 OpenCore EFI → 可选地在现有硬盘上无损划出安装分区并写入恢复镜像。
 
