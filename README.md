@@ -182,3 +182,11 @@ exe 未做代码签名。校验方式：从本仓库 Releases 下载，比对 `S
 这个项目站在一堆开源工作的肩膀上：OpCore-Simplify、Hardware-Sniffer、OpenCorePkg / Acidanthera、
 OpenCore Legacy Patcher、Dortania 的安装指南、NullMoth 的 NVIDIA 驱动，以及 SSDTTime、USBToolBox 等。
 完整清单与许可证在 [NOTICE.md](NOTICE.md)。
+
+## 联系
+
+**作品移除 / 授权问题**：如果你是某个作品的作者，不希望它被本项目使用（署名缺失、许可不兼容，
+或者单纯不愿意），请邮件到 **shaengli@163.com**，说明涉及的文件或组件。我会在下一次提交里
+移除或替换，不需要额外的理由。
+
+**使用问题 / 建议 / 发现文档写错了**：同样欢迎发邮件，或在 [Issues](issues) 提出。

@@ -225,3 +225,12 @@ repository versus are downloaded at runtime — is in [NOTICE.md](NOTICE.md); mo
 This project stands on a lot of open-source work: OpCore-Simplify, Hardware-Sniffer,
 OpenCorePkg / Acidanthera, OpenCore Legacy Patcher, the Dortania install guide, NullMoth's NVIDIA
 driver, plus SSDTTime and USBToolBox. The full list with licences is in [NOTICE.md](NOTICE.md).
+
+## Contact
+
+**Takedown / licensing**: if you own a work used here and would rather it weren't (missing credit,
+incompatible licence, or simply not what you want), email **shaengli@163.com** with the file or
+component in question. I'll remove or replace it in the next commit — no justification needed.
+
+**Usage questions, suggestions, or documentation errors**: the same address, or open an
+[issue](issues).
