@@ -85,7 +85,7 @@
 
 ## 使用
 
-从 [Releases](../../releases) 下载 `OpenHack.exe`，双击即可。
+从 [Releases](releases) 下载 `OpenHack.exe`，双击即可。
 
 它是**单文件**：Python 后端和 WebView2 加载器都嵌在 exe 尾部，首次运行自动解压到
 `%LOCALAPPDATA%\OpenHack\bin`，之后按 buildId 校验版本，不会重复解压。
