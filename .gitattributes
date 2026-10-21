@@ -1,0 +1,19 @@
+* text=auto
+
+# Windows 脚本必须保持 CRLF，否则 cmd 解析可能出问题
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制资源
+*.exe binary
+*.dll binary
+*.icns binary
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bmp binary
+*.aml binary
+*.zip binary
+*.tar.gz binary

@@ -1,0 +1,38 @@
+# ---- 运行时产物（体积大、与本机相关，不进仓库）----
+data/
+runtime/
+dist/
+build/
+
+# 调试截图（含本机画面，不进仓库）
+_shot/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# PyInstaller 中间产物
+*.manifest
+*.spec.bak
+
+# 编译中间产物
+native/obj/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 本地日志 / 临时文件
+*.log

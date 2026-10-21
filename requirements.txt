@@ -1,0 +1,6 @@
+# 工具的运行依赖，装进 runtime/ 虚拟环境即可。
+# pip 索引在本机若不可用，可用内置的离线安装方式：
+#   runtime\Scripts\python -m pip install --no-index --no-deps <本地 .whl>
+wmi>=1.5.1
+pywin32>=306
+certifi>=2024.7.4

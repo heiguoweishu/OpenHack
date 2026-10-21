@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenHack · 黑苹果一键装机</title>
+<link rel="stylesheet" href="css/glass.css">
+</head>
+<body>
+
+<div class="wallpaper"></div>
+<div class="grain"></div>
+
+<div class="app">
+
+  <!-- ==================== 侧栏 ==================== -->
+  <aside class="sidebar glass glass-strong">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 8.1c1.7-1.5 4.3-1.3 5.4.6 1 1.7.5 3.9-.4 5.8-.9 1.8-2 3.4-2.9 3.4-.8 0-1.1-.4-2.1-.4s-1.3.4-2.1.4c-.9 0-2-1.6-2.9-3.4-.9-1.9-1.4-4.1-.4-5.8 1.1-1.9 3.7-2.1 5.4-.6z"/>
+          <path d="M12 8.1V6.2c0-1.1.6-2.1 1.6-2.6"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <b>OpenHack</b>
+        <span>黑苹果一键装机</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">开始</div>
+      <button class="nav-item active" data-view="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
+        概览
+      </button>
+      <button class="nav-item" data-view="logs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        运行日志
+      </button>
+
+      <div class="nav-label">两条路线</div>
+      <button class="nav-item" data-view="efi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+        一键生成 EFI
+        <span class="nav-badge">路线 1</span>
+      </button>
+      <button class="nav-item" data-view="install">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M7 15.5h4M13 15.5h3"/><circle cx="6" cy="9" r="1"/><path d="M12 9h6"/></svg>
+        无损安装
+        <span class="nav-badge">路线 2</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <button class="nav-item about-link" data-view="about">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        致谢 · 免责 · 许可
+      </button>
+      <div class="foot-note">在你的机器上本地运行，不联网上传任何数据。</div>
+    </div>
+  </aside>
+
+  <!-- ==================== 主区 ==================== -->
+  <section class="main glass glass-strong">
+    <header class="main-head">
+      <div style="flex:1;min-width:0">
+        <h1 id="pageTitle">概览</h1>
+        <p id="pageSub">先看看这台机器的状态，再决定走哪条路</p>
+      </div>
+      <div class="btn-row">
+        <span class="chip" id="adminChip" title="部分操作需要管理员权限">检测中…</span>
+        <button class="btn btn-glass btn-sm" id="btnRefresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+          重新体检
+        </button>
+        <button class="btn btn-glass btn-sm" id="btnQuit" title="结束本地服务并退出">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          退出
+        </button>
+      </div>
+    </header>
+
+    <div class="main-body">
+
+      <!-- ---------- 概览 ---------- -->
+      <div class="view active" id="view-home">
+        <div class="row-between" style="margin-bottom:14px">
+          <div class="muted" style="font-size:12px">界面外观</div>
+          <label class="switch" title="液态玻璃观感：毛玻璃卡片透出你真实的桌面壁纸。关闭则回到扁平干净模式">
+            <input type="checkbox" id="wallpaperToggle">
+            <span class="track"></span>
+            <span class="nowrap">液态玻璃背景</span>
+          </label>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="card glass route" data-goto="efi">
+            <div class="route-icon" style="background:linear-gradient(150deg,#5b8def,#2f5bd0)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+            </div>
+            <h3>一键生成 EFI</h3>
+            <div class="desc">扫描硬件、判定兼容性、自动挑选机型与内核扩展，生成一份可以直接放进 EFI 分区的 OpenCore 引导。</div>
+            <div class="steps-list">
+              <span class="chip">硬件嗅探</span><span class="chip">兼容性判定</span><span class="chip">机型匹配</span><span class="chip">构建 EFI</span>
+            </div>
+          </div>
+
+          <div class="card glass route" data-goto="install">
+            <div class="route-icon" style="background:linear-gradient(150deg,#b98bf5,#7d3fc4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M7 15.5h4M13 15.5h3"/><circle cx="6" cy="9" r="1"/><path d="M12 9h6"/></svg>
+            </div>
+            <h3>无损安装到本机</h3>
+            <div class="desc">在现有硬盘上不开刀、不丢数据：压缩一个分区腾出空间，新建 EFI 与安装分区，写入 EFI 和 Apple 恢复镜像。</div>
+            <div class="steps-list">
+              <span class="chip">空间规划</span><span class="chip">新建分区</span><span class="chip">写入镜像</span><span class="chip">保留 Windows</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h2>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4 6v6c0 4.5 3.3 8.4 8 9.5 4.7-1.1 8-5 8-9.5V6z"/><path d="m9 12 2 2 4-4"/></svg>
+            系统体检
+          </h2>
+          <div class="sub">这些项目决定黑苹果能不能起来，红色项必须处理。</div>
+          <div id="checkList">
+            <div class="empty"><div class="spinner dark" style="margin:0 auto"></div><br>正在检查…</div>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h2>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+            本机硬件
+          </h2>
+          <div class="sub">当前机器的硬件快照。生成 EFI 时会重新扫描一遍，以最新状态为准。</div>
+          <dl class="kv" id="hwList"></dl>
+        </div>
+      </div>
+
+      <!-- ---------- 生成 EFI ---------- -->
+      <div class="view" id="view-efi">
+        <div class="steps" id="efiSteps"></div>
+
+        <div class="card glass">
+          <h2>
+            <span class="chip" style="background:var(--blue);color:#fff">第 1 步</span>
+            扫描硬件
+          </h2>
+          <div class="sub">在你的机器上采集 CPU、显卡、声卡、网卡等信息，并导出 ACPI 表（需要几分钟，首次会下载 acpidump）。</div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btnScan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              开始扫描本机
+            </button>
+            <button class="btn btn-glass" id="btnLoadReport">载入已有报告</button>
+            <span class="muted" style="font-size:12px" id="scanStatus"></span>
+          </div>
+          <div class="progress-wrap" id="scanProgressWrap" style="display:none">
+            <div class="progress-row"><b id="scanLabel">准备中…</b><span id="scanPct">0%</span></div>
+            <div class="progress"><i id="scanBar" style="width:0%"></i></div>
+          </div>
+        </div>
+
+        <div class="card glass" id="efiIntroCard">
+          <h2>生成出来的是什么</h2>
+          <div class="sub">一份可以直接放进 EFI 分区的 OpenCore 引导，包含针对你这台机器生成的配置。</div>
+          <div class="grid grid-3" style="gap:10px">
+            <div class="stat"><b>7</b><span>步自动流水线</span></div>
+            <div class="stat"><b>~10 分钟</b><span>首次（含下载）</span></div>
+            <div class="stat"><b>~100 MB</b><span>OpenCore 与内核扩展</span></div>
+          </div>
+          <div class="note note-info" style="margin:14px 0 0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+            <div>
+              扫描与构建需要联网，首次会下载引导加载器与各内核扩展。
+              硬件兼容性以上游社区的判定规则为准，工具不改写它的结论；
+              生成的每一份 EFI 都能在界面上看到完整的 kext 与 ACPI 清单，不做黑箱操作。
+            </div>
+          </div>
+        </div>
+
+        <div class="card glass" id="efiConfigCard" style="display:none">
+          <h2>
+            <span class="chip" style="background:var(--blue);color:#fff">第 2 步</span>
+            确认配置
+          </h2>
+          <div class="sub">已按硬件自动选好了目标版本和要禁用的设备，可以按需调整。</div>
+
+          <div id="gpuWarn"></div>
+
+          <div class="grid grid-2">
+            <div>
+              <div class="field">
+                <label>目标 macOS 版本</label>
+                <select id="macosVersion"></select>
+                <div class="hint" id="versionHint"></div>
+              </div>
+              <div class="field">
+                <label>声卡方案（Tahoe 及以上生效）</label>
+                <select id="audioStrategy">
+                  <option value="simplehda">AppleALC + SimpleHDA（推荐，不需要系统补丁）</option>
+                  <option value="oclp">AppleALC + OCLP 根补丁</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <div class="field">
+                <label>ACPI 补丁</label>
+                <select id="acpiPreset">
+                  <option value="auto">按硬件自动（推荐）</option>
+                  <option value="none">全部关闭</option>
+                  <option value="all">全部开启</option>
+                </select>
+                <div class="hint" id="acpiHint"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:9px">设备清单</div>
+          <div id="deviceList"></div>
+
+          <div class="divider"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-lg" id="btnBuild">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
+              生成 EFI
+            </button>
+            <span class="muted" style="font-size:12px">首次需要下载 OpenCore 与各 kext，之后会走本地缓存。</span>
+          </div>
+        </div>
+
+        <div class="card glass" id="efiBuildCard" style="display:none">
+          <h2>
+            <span class="chip" style="background:var(--blue);color:#fff">第 3 步</span>
+            构建进度
+          </h2>
+          <div class="progress-wrap">
+            <div class="progress-row"><b id="buildLabel">准备中…</b><span id="buildPct">0%</span></div>
+            <div class="progress"><i id="buildBar" style="width:0%"></i></div>
+          </div>
+          <div class="steps" id="buildSteps" style="margin-top:14px"></div>
+        </div>
+
+        <div class="card glass" id="efiResultCard" style="display:none">
+          <h2>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>
+            EFI 已生成
+          </h2>
+          <div class="sub" id="efiOutPath"></div>
+          <div class="grid grid-4" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px" id="efiStats"></div>
+          <div style="font-size:12.5px;font-weight:600;margin:14px 0 9px">包含的内核扩展</div>
+          <div id="kextList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+          <div style="font-size:12.5px;font-weight:600;margin:14px 0 9px">ACPI 表</div>
+          <div id="acpiList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btnOpenEfi">打开输出目录</button>
+            <button class="btn btn-glass" id="btnToInstall">用这份 EFI 继续无损安装 →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- 无损安装 ---------- -->
+      <div class="view" id="view-install">
+        <div class="steps" id="instSteps"></div>
+
+        <div class="note note-warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+          <div>
+            <b>这一步会改动磁盘分区。</b>我们只做三件事：把某个 NTFS 分区<b>压缩</b>一下（NTFS 原生支持，卷内数据不动）、
+            在腾出的空间上新建分区、往里写文件。<b>不会删除或格式化任何现有分区。</b>
+            但任何磁盘操作都有风险 —— 动手前请务必确认重要数据有备份。
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h2>
+            <span class="chip" style="background:var(--purple);color:#fff">第 1 步</span>
+            选择目标磁盘
+          </h2>
+          <div class="sub">建议选 macOS 系统要安装的那块盘。已标注每块盘的分区表类型与空间状况。</div>
+          <div id="diskList"><div class="empty"><div class="spinner dark" style="margin:0 auto"></div><br>正在读取磁盘…</div></div>
+        </div>
+
+        <div class="card glass" id="planCard" style="display:none">
+          <h2>
+            <span class="chip" style="background:var(--purple);color:#fff">第 2 步</span>
+            规划空间
+          </h2>
+          <div class="sub">选择从哪里腾出空间，以及各分区要多大。</div>
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label>腾出空间的方式</label>
+              <select id="shrinkMode">
+                <option value="shrink">压缩某个现有分区（推荐）</option>
+                <option value="tail">使用磁盘尾部已有的空闲空间</option>
+              </select>
+            </div>
+            <div class="field" id="shrinkVolumeField">
+              <label>要压缩的分区</label>
+              <select id="shrinkVolume"></select>
+            </div>
+          </div>
+
+          <div class="field" id="shrinkSizeField">
+            <label>腾出总空间：<b id="shrinkSizeLabel">—</b></label>
+            <input type="range" id="shrinkSize" min="20480" max="204800" step="2048">
+            <div class="hint" id="shrinkHint"></div>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label>EFI 分区大小</label>
+              <select id="espSize">
+                <option value="1024">1024 MB（仅 EFI，不装恢复镜像）</option>
+                <option value="1536" selected>1536 MB（推荐，可容纳一份恢复镜像）</option>
+                <option value="2048">2048 MB</option>
+              </select>
+              <div class="hint">macOS 恢复镜像约 850 MB，和 EFI 一起放在这个 FAT32 分区里。</div>
+            </div>
+            <div class="field">
+              <label>macOS 安装分区</label>
+              <select id="installSizeMode">
+                <option value="remaining" selected>占用剩余全部空间</option>
+                <option value="custom">指定大小</option>
+              </select>
+              <input type="number" id="installSizeMb" min="20480" step="1024" value="102400" placeholder="MB" style="margin-top:8px;display:none">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>写入的 EFI 来源</label>
+            <select id="efiSource">
+              <option value="">（跳过，只建分区）</option>
+            </select>
+            <div class="hint" id="efiSourceHint"></div>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label>要安装的 macOS 版本（恢复镜像）</label>
+              <select id="recoveryVersion"></select>
+              <div class="hint">从 Apple 官方服务器直连下载，边下边做分片校验。</div>
+            </div>
+          <div class="field">
+            <label>恢复镜像</label>
+            <label class="switch" style="margin-top:7px">
+              <input type="checkbox" id="skipRecovery">
+              <span class="track"></span>
+              <span class="nowrap">跳过下载</span>
+            </label>
+            <div class="hint">勾选后只建分区，镜像稍后自行准备。</div>
+          </div>
+          <div class="field">
+            <label>NullMoth NVIDIA 驱动包</label>
+            <label class="switch" style="margin-top:7px">
+              <input type="checkbox" id="stageDriver" checked>
+              <span class="track"></span>
+              <span class="nowrap">一并放入分区</span>
+            </label>
+            <div class="hint" id="stageDriverHint">检测到受支持的 N 卡时，把驱动包（约 10 MB）一起写进 EFI 分区，macOS 装好后按说明安装。</div>
+          </div>
+          </div>
+
+          <div id="planSummary"></div>
+        </div>
+
+        <div class="card glass" id="instRunCard" style="display:none">
+          <h2>
+            <span class="chip" style="background:var(--purple);color:#fff">第 3 步</span>
+            执行
+          </h2>
+          <div class="progress-wrap">
+            <div class="progress-row"><b id="instLabel">准备中…</b><span id="instPct">0%</span></div>
+            <div class="progress"><i id="instBar" style="width:0%"></i></div>
+          </div>
+          <div class="steps" id="instStepsBar" style="margin-top:14px"></div>
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn btn-danger" id="btnInstall">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9z"/></svg>
+              确认执行（会改动分区）
+            </button>
+            <button class="btn btn-glass" id="btnCancelInstall" style="display:none">取消</button>
+            <!-- 执行完成后才出现：一个按上次设置重跑，一个回到规划重新来一遍 -->
+            <button class="btn btn-danger" id="btnReinstall" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+              重新执行
+            </button>
+            <button class="btn btn-glass" id="btnReplan" style="display:none">重新规划</button>
+          </div>
+        </div>
+
+        <div class="card glass" id="instDoneCard" style="display:none">
+          <h2>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>
+            分区已就绪
+          </h2>
+          <div class="sub">接下来只差最后一步。重启后进入固件启动菜单，选择新出现的 EFI 启动项即可。</div>
+          <div id="instResult"></div>
+        </div>
+      </div>
+
+      <!-- ---------- 致谢 / 免责 / 许可 ---------- -->
+      <div class="view" id="view-about">
+        <div class="card glass">
+          <h2>致谢名单</h2>
+          <div class="sub">这个工具站在几个开源项目的肩膀上。判定规则、镜像协议、驱动移植都来自它们，
+            对应的许可与出处一并列在下面。</div>
+          <div class="credit" id="creditList"></div>
+        </div>
+
+        <div class="card glass">
+          <h2>免责声明</h2>
+          <div class="sub">使用前请完整读完这一段。</div>
+          <div class="legal">
+            <p><b>按"原样"提供。</b>本工具不附带任何明示或暗示的担保，包括但不限于
+            适销性与特定用途适用性。你自行承担全部使用风险。</p>
+
+            <p><b>分区操作不可完全撤销。</b>第二条路线会修改磁盘分区表。我们只做 NTFS 在线收缩、
+            在腾出的空间里新建分区、向新分区写文件，<b>不删除也不格式化任何现有分区</b>；
+            但任何磁盘操作都有风险（断电、固件缺陷、坏道都可能让事情变糟）。
+            <b>动手之前请确认重要数据另有备份。</b></p>
+
+            <p><b>不对数据丢失承担责任。</b>因使用本工具造成的任何直接或间接损失，
+            包括数据丢失、系统无法启动、硬件损坏，作者不承担责任。</p>
+
+            <p><b>请确认你有权修改目标计算机。</b>如果这不是你自己的机器，
+            请先取得所有者的明确同意。</p>
+
+            <p><b>不托管任何 Apple 文件。</b>macOS 恢复镜像与内核扩展均从各自的官方渠道
+            （Apple 服务器、各项目 Release）直接获取，本工具不镜像、不转发、不修改它们的内容，
+            并对镜像逐分片做签名与哈希校验。</p>
+
+            <p><b>第三方组件的许可归各自作者。</b>下列项目按各自的许可证使用，
+            你需要遵守对应许可证的条款；其中标注为"禁止商用"的组件，
+            意味着本工具整体也不应用于商业场景。</p>
+
+            <p><b>硬件兼容性结论以上游项目为准。</b>工具不自行发明支持矩阵。
+            标注"未实测"的硬件组合表示它在官方的支持列表内、但没有可查的成功案例，
+            属于可尝试而非保证可用。</p>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h2>开源许可</h2>
+          <div class="sub">本工具自身的代码采用 MIT 许可证发布（完整条款见仓库根目录的 LICENSE）。</div>
+          <div class="legal">
+            <p>受上述组件许可证约束，<b>本工具不得用于商业用途</b> ——
+            引用的 NullMoth 驱动栈采用 PolyForm Noncommercial 许可证。</p>
+            <p>各组件许可证全文可在对应项目的仓库中查阅：</p>
+            <ul class="legal-list">
+              <li>OpenCorePkg — BSD-3-Clause</li>
+              <li>macrecovery / OpenCore 工具链 — BSD-3-Clause</li>
+              <li>OpCore-Simplify — BSD-3-Clause</li>
+              <li>Hardware-Sniffer — BSD-3-Clause</li>
+              <li>1401 与 NullMoth 驱动 — PolyForm Noncommercial 1.0.0</li>
+              <li>各内核扩展（Lilu / VirtualSMC / AppleALC 等）— 见各自仓库</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- 日志 ---------- -->
+      <div class="view" id="view-logs">
+        <div class="card glass">
+          <div class="row-between" style="margin-bottom:12px">
+            <div>
+              <h2>运行日志</h2>
+              <div class="sub" style="margin:0">所有操作的完整输出，遇到问题时请提供这里的内容。</div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-glass btn-sm" id="btnClearLog">清空</button>
+              <button class="btn btn-glass btn-sm" id="btnCopyLog">复制全部</button>
+            </div>
+          </div>
+          <div class="console" id="console"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
