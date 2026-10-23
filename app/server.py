@@ -282,10 +282,20 @@ class Handler(SimpleHTTPRequestHandler):
         )
 
         def pump():
+            # pywin32 在某些机器（实测 AMD 平台上尤其多）会为每个释放失败的 COM 接口
+            # 打一行 "Win32 exception occurred releasing IUnknown at 0x..."，一次扫描能刷
+            # 几百行，把真正的报错整段淹掉。这类 release 失败不影响已取到的数据，
+            # 直接在转发层丢弃 —— 不管它是走 Python 的 sys.stderr 还是 C 层写 fd 2，
+            # 最终都要经过这里，所以这一道是最可靠的。
+            # 想排查 COM 问题时设 OPENHACK_SHOW_COM_NOISE=1。
+            drop_com_noise = os.environ.get("OPENHACK_SHOW_COM_NOISE") != "1"
             try:
                 for line in proc.stdout:
                     line = line.rstrip("\r\n")
                     if not line:
+                        continue
+                    if drop_com_noise and ("releasing IUnknown" in line
+                                           or "Win32 exception occurred" in line):
                         continue
                     chunk = f"data: {line}\n\n".encode("utf-8")
                     try:

@@ -210,6 +210,18 @@ selects patches based on your CPU / motherboard.
 **A black console window flashes during scanning?**
 Fixed. Upstream runs `os.system('cls')`, which bypasses `subprocess` and had to be intercepted separately.
 
+**Downloading OpenCore / kexts spins forever, or reports "resource download failed"?**
+That's a network problem, not a hardware or config problem: OpenCore, the kexts and the recovery
+image all come from GitHub. The tool ships with 4 mirrors and switches among them automatically,
+but if the network has no route to GitHub it will still fail — and it will tell you why instead of
+spinning forever. Your options:
+
+1. Retry on another network or behind a proxy — **after one success the assets are cached locally
+   and later builds don't touch the network at all**;
+2. Download the assets manually into `%LOCALAPPDATA%\OpenHack\data\cache\OCK_Files`
+   (the file names must match what the engine expects — the log says which file it is looking for);
+3. If you only want the compatibility verdict, "scan + analyse" is enough and needs no network.
+
 **Windows says "unknown publisher"?**
 The exe isn't code-signed. Verify a download by comparing against `SHA256SUMS.txt` from this
 repository's Releases.

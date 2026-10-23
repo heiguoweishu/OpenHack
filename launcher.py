@@ -176,6 +176,50 @@ def _install_no_window():
         _os.system = _no_window_system
 
 
+def _silence_com_noise():
+    """屏蔽 pywin32 释放 COM 接口失败时刷的那几百行。
+
+    WMI 枚举完一台机器的上百个设备后，pywin32 会为每个"释放失败"的接口打印一行
+    ``Win32 exception occurred releasing IUnknown at 0x...``。这些 release 失败本身
+    不影响已经取到的数据（对象随后会被回收），但成百上千行会把真正的报错完全淹没，
+    界面上看起来也像是程序出了问题。
+
+    需要排查 COM 问题时设 OPENHACK_SHOW_COM_NOISE=1 可恢复完整输出。
+    """
+    if os.environ.get("OPENHACK_SHOW_COM_NOISE") == "1":
+        return
+    if getattr(sys.stderr, "_open_hack_com_filter", False):
+        return
+    real = sys.stderr
+    if real is None:
+        return
+
+    class _ComNoiseFilter:
+        """只丢弃 COM 噪音行，其余原样转发（包括 traceback）。"""
+
+        _open_hack_com_filter = True
+
+        def write(self, text):
+            if "releasing IUnknown" in text or "Win32 exception occurred" in text:
+                return len(text)
+            return real.write(text)
+
+        def writelines(self, lines):
+            for line in lines:
+                self.write(line)
+
+        def flush(self):
+            try:
+                real.flush()
+            except Exception:
+                pass
+
+        def __getattr__(self, name):
+            return getattr(real, name)
+
+    sys.stderr = _ComNoiseFilter()
+
+
 def _run_worker(args):
     """worker 分发：`GlassHack.exe --worker app.worker_scan --out ...`。
 
@@ -190,6 +234,7 @@ def _run_worker(args):
         return 2
 
     _install_no_window()
+    _silence_com_noise()
 
     # 打包成 GUI 子系统的 exe 后，sys.stdout 的编码会落到系统代码页（简中是 cp936/GBK），
     # 而父进程（server）是按 UTF-8 读的 → 中文全变乱码。
@@ -323,6 +368,7 @@ def main():
         return _run_worker(argv[1:])
 
     _install_no_window()
+    _silence_com_noise()
 
     # --no-browser：被原生外壳（native/GlassHack.exe）当后端调用时使用。
     # 那种模式下窗口由原生 exe 自己建、自己上系统级毛玻璃，

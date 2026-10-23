@@ -86,7 +86,43 @@ def _load_report(path, bus, mods):
     data = utils.read_file(path)
     if not data:
         raise RuntimeError(f"无法解析硬件报告：{path}")
-    return data
+    return _normalize_report(data, bus)
+
+
+# 报告的顶层设备段。上游用这些键名做 `hardware_report.get("X").items()`。
+_SECTIONS = (
+    "CPU", "GPU", "Motherboard", "BIOS", "Memory", "Input", "Network",
+    "Bluetooth", "Storage Controllers", "USB Controllers", "SD Controller",
+    "Audio", "Others",
+)
+
+
+def _normalize_report(report, bus):
+    """把值为 null 的设备段归一化成空对象。
+
+    上游有 34 处写成 ``hardware_report.get("Input").items()`` 这种形式 —— 键存在、
+    但值是 null 时直接 AttributeError。这不是理论问题：GMKTEC NUCBOX M5
+    （Ryzen 7 5700U）的 Input 段就是 null，整条「生成 EFI」流水线会在选 kext 时断掉，
+    报 ``'NoneType' object has no attribute 'items'``，看着像硬件不支持，实际是数据形状。
+
+    只处理顶层设备段：段内部的 None 是有意义的（例如 ``"Codename": None``），不能递归清。
+    """
+    fixed = []
+    for key in _SECTIONS:
+        if key in report and report[key] is None:
+            report[key] = {}
+            fixed.append(key)
+    # GPU 段被上游用 [0] / [-1] 取元素：留空字典会把 AttributeError 变成 IndexError，
+    # 所以补一条占位而不是留空。占位 ID 不可能命中任何驱动，不会被 NullMoth 误认领。
+    if not report.get("GPU"):
+        report["GPU"] = {"Unknown GPU": {
+            "Manufacturer": "NVIDIA", "Codename": "Unknown",
+            "Device ID": "10DE-0000", "Device Type": "Discrete GPU",
+        }}
+        fixed.append("GPU(占位)")
+    if fixed:
+        bus.log("报告中以下设备段为 null，已归一化：" + "、".join(fixed), "warn")
+    return report
 
 
 def do_analyze(args, bus):

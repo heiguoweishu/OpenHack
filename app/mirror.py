@@ -23,10 +23,11 @@ import time
 
 from . import paths
 
-REQUEST_TIMEOUT = 180
-
-# 部分产物（OcBinaryData 之类的整仓 zip）在国内常常只有几十 KB/s，
-# 一次 read() 卡住几十秒很常见 —— 超时给得太小就会前功尽弃。
+# 这是 socket 级超时（每次 read 的上限），不是总时长。
+# 给太大（曾经是 180）会让一条坏连接空转 3 分钟：实测 SSL 握手能卡到 196 秒，
+# 界面上表现为"进度条一动不动"，用户完全不知道是在下载还是死了。
+# 45 秒足够慢速连接读一段数据，超时就换下一个源，整体反而更快。
+REQUEST_TIMEOUT = 45
 
 # 公共 GitHub 加速镜像。顺序即为尝试顺序。
 MIRRORS = [
@@ -95,7 +96,10 @@ def patch(mods, bus=None):
 
     def patched(self, resource_url, timeout=None):
         """逐个候选源尝试，全失败才返回 None（调用方会继续自己的重试逻辑）。"""
-        use = timeout if (timeout and timeout >= 30) else REQUEST_TIMEOUT
+        # 不采纳引擎传进来的 timeout：它写死 180 秒，一条坏连接能空转 3 分钟
+        # （实测 SSL 握手卡到 196 秒，界面完全看不出是死了还是在下载）。
+        # 这里统一用我们自己的值，超时就换下一个源，整体反而更快。
+        use = REQUEST_TIMEOUT
         last = None
         for i, candidate in enumerate(candidates(resource_url)):
             try:
@@ -135,6 +139,17 @@ def patch(mods, bus=None):
                     return result
                 if i == 0 and bus:
                     bus.log("直连下载未成功，正在尝试备用源…", "warn")
+            # 全部源都失败：必须把"为什么"说清楚。
+            # 这类失败在界面上原本只表现为进度条卡住，用户会以为是软件坏了，
+            # 实际是网络到不了 GitHub。
+            if bus:
+                reason = str(last_error)[:120] if last_error else "未知原因"
+                bus.log(f"资源下载失败（{reason}）。已尝试直连与 {len(MIRRORS)} 个镜像。", "error")
+                bus.log("这是网络问题，不是硬件或配置问题。可选做法：", "warn")
+                bus.log("  1) 换个网络 / 挂代理后重试（生成一次后资源会缓存到本地）；", "warn")
+                bus.log("  2) 手动下载对应资源放进 " + os.path.join(str(paths.CACHE), "OCK_Files")
+                        + " 目录（文件名需与引擎期望的一致）；", "warn")
+                bus.log("  3) 若只想要 EFI 的骨架，可改选较低版本或稍后再试。", "warn")
             if last_error:
                 raise last_error
             return None
