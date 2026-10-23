@@ -36,3 +36,6 @@ desktop.ini
 
 # 本地日志 / 临时文件
 *.log
+
+# 离线种子（由 _test/prepare_offline_cache.py 生成，约 52MB，不进仓库）
+offline_cache/

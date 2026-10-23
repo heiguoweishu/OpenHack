@@ -139,6 +139,44 @@ def patch_nvidia(mods, bus=None):
     return cls
 
 
+def patch_offline(mods, bus=None):
+    """断网时让引擎把本地缓存当成「已是最新版本」，从而跳过下载。
+
+    引擎每次生成 EFI 都会先拉 dortania 的 builds/latest.json 确认版本号。断网时
+    那个字段为 None，紧接着 `if name in dortania_builds_data` 直接抛
+    TypeError: argument of type 'NoneType' is not iterable —— 整条构建就断在下载这一步。
+
+    关键洞察：`fetch_latest_products_info` 里 `latest_products` 的**起点本来就是
+    history.json 的拷贝**。所以只要把「拉取失败」降级成「直接用 history」：
+      * product_id 与 history 里记录的一致 → is_latest_id 为真；
+      * 目录完整性校验通过（本地缓存是当初校验过才落盘的）；
+    引擎自己就会打印 "Latest version already downloaded" 并跳过下载。
+    也就是说：文件已经在本地时，联网检查版本这一步是**可以省的**。
+    """
+    try:
+        cls = mods["gathering_files"].gatheringFiles
+    except Exception:
+        return None
+    if getattr(cls, "_glass_offline_patched", False):
+        return cls
+    original = cls.fetch_latest_products_info
+
+    def patched(self, kexts, local_download_history):
+        try:
+            return original(self, kexts, local_download_history)
+        except Exception as e:
+            if bus:
+                bus.log(f"无法获取在线版本信息（{str(e)[:70]}），改用本地缓存里记录的版本", "warn")
+            try:
+                return {k: v.copy() for k, v in (local_download_history or {}).items()}
+            except Exception:
+                return {}
+
+    cls.fetch_latest_products_info = patched
+    cls._glass_offline_patched = True
+    return cls
+
+
 def patch_removal():
     """给删除操作加一层降级。
 

@@ -411,6 +411,8 @@ def do_build(args, bus):
     mods = autopilot.load_engine()
     autopilot.install_answers(mods, prefs)
     autopilot.patch_nvidia(mods, bus)
+    # 断网时把本地缓存当成"已是最新版本"，否则会卡在拉取 dortania 版本信息那一步
+    autopilot.patch_offline(mods, bus)
     # 修掉 10 秒超时 + 加镜像兜底，否则大一点的 kext 在国内网络环境下基本下不动
     from app import mirror
     mirror.patch(mods, bus)

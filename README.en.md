@@ -119,7 +119,15 @@ Download `OpenHack.exe` from [Releases](releases) and double-click it.
 
 It is a **single file**: the Python backend and the WebView2 loader are appended to the exe and
 unpacked to `%LOCALAPPDATA%\OpenHack\bin` on first run. Subsequent runs compare a `buildId`, so the
-17 MB payload is not rewritten every time.
+payload is not rewritten every time.
+
+**The exe is ~48 MB because it embeds the offline assets** (OpenCorePkg plus every kext: 52 MB raw,
+~32 MB compressed). It exists for one reason: **so you can generate an EFI with no route to GitHub
+at all**. On first run it releases them into `%LOCALAPPDATA%\OpenHack\data\cache` — and only once,
+when the cache is empty, so a kext you fetched yourself later is never overwritten by the seed.
+
+> The ~256 MB NullMoth NVIDIA driver package is *not* included: it's only needed for N-card
+> acceleration, and there's no reason to make everyone carry it.
 
 Output locations:
 
@@ -211,16 +219,18 @@ selects patches based on your CPU / motherboard.
 Fixed. Upstream runs `os.system('cls')`, which bypasses `subprocess` and had to be intercepted separately.
 
 **Downloading OpenCore / kexts spins forever, or reports "resource download failed"?**
-That's a network problem, not a hardware or config problem: OpenCore, the kexts and the recovery
-image all come from GitHub. The tool ships with 4 mirrors and switches among them automatically,
-but if the network has no route to GitHub it will still fail — and it will tell you why instead of
-spinning forever. Your options:
+It normally **doesn't need the network at all**: the exe embeds the offline assets (OpenCorePkg plus
+every kext) and releases them into the local cache on first run. If it still fails, the cache is
+probably corrupt or you're on an older build:
 
-1. Retry on another network or behind a proxy — **after one success the assets are cached locally
-   and later builds don't touch the network at all**;
-2. Download the assets manually into `%LOCALAPPDATA%\OpenHack\data\cache\OCK_Files`
-   (the file names must match what the engine expects — the log says which file it is looking for);
+1. Delete `%LOCALAPPDATA%\OpenHack\data\cache` and restart the app so the embedded assets are
+   released again;
+2. Or retry on another network / behind a proxy (a successful fetch is cached, so later builds stay
+   offline);
 3. If you only want the compatibility verdict, "scan + analyse" is enough and needs no network.
+
+**NVIDIA driver support** still requires downloading that ~256 MB driver package — it is not part of
+the offline assets.
 
 **Windows says "unknown publisher"?**
 The exe isn't code-signed. Verify a download by comparing against `SHA256SUMS.txt` from this

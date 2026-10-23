@@ -220,6 +220,40 @@ def _silence_com_noise():
     sys.stderr = _ComNoiseFilter()
 
 
+def _seed_offline_cache():
+    """首次运行时把内嵌的离线资源释放到 data/cache。
+
+    生成 EFI 需要 OpenCorePkg 和一系列 kext，没网就完全下不来。所以主程序里带了一份
+    种子（约 52 MB，**不含** 256 MB 的 NullMoth 驱动包）。
+
+    只在 cache 里还没有 history.json 时释放一次 —— 这点很关键：之后用户联网更新过的
+    kext 必须优先，绝不能被旧种子盖回去。种子只负责"从零到能用"。
+    """
+    seed = os.path.join(str(paths.ROOT), "offline_cache")
+    if not os.path.isdir(seed):
+        return                      # 打包时没带种子，或源码模式
+    cache = str(paths.CACHE)
+    if os.path.isfile(os.path.join(cache, "history.json")):
+        return                      # 已有缓存，交给用户自己的版本
+    copied = 0
+    try:
+        os.makedirs(cache, exist_ok=True)
+        for dirpath, _dirs, files in os.walk(seed):
+            rel = os.path.relpath(dirpath, seed)
+            out_dir = cache if rel == "." else os.path.join(cache, rel)
+            os.makedirs(out_dir, exist_ok=True)
+            for name in files:
+                dst = os.path.join(out_dir, name)
+                if os.path.exists(dst):
+                    continue
+                shutil.copy2(os.path.join(dirpath, name), dst)
+                copied += 1
+        if copied:
+            print(f"[offline] 已释放内嵌离线资源 {copied} 个文件到 {cache}")
+    except Exception as e:
+        print(f"[offline] 离线资源释放失败：{e}")
+
+
 def _run_worker(args):
     """worker 分发：`GlassHack.exe --worker app.worker_scan --out ...`。
 
@@ -235,7 +269,6 @@ def _run_worker(args):
 
     _install_no_window()
     _silence_com_noise()
-
     # 打包成 GUI 子系统的 exe 后，sys.stdout 的编码会落到系统代码页（简中是 cp936/GBK），
     # 而父进程（server）是按 UTF-8 读的 → 中文全变乱码。
     # 这里强制把两个流统一成 UTF-8，这是乱码的唯一根因。
@@ -244,6 +277,9 @@ def _run_worker(args):
             stream.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+
+    # 必须放在 reconfigure 之后：它会打印一行中文，早于这里就会变成乱码
+    _seed_offline_cache()
 
     import importlib
 
@@ -369,6 +405,7 @@ def main():
 
     _install_no_window()
     _silence_com_noise()
+    _seed_offline_cache()
 
     # --no-browser：被原生外壳（native/GlassHack.exe）当后端调用时使用。
     # 那种模式下窗口由原生 exe 自己建、自己上系统级毛玻璃，

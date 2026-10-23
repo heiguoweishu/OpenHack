@@ -11,17 +11,28 @@
 而且打包后 data 已改道到 %LOCALAPPDATA%\\GlassHack，不该塞进 exe。
 """
 
+import os
+
 block_cipher = None
+
+# 离线种子（可选）：OpenCorePkg + 各类 kext 的解压副本，约 52 MB。
+# 生活在一个没网（或连不上 GitHub）的环境里时，生成 EFI 全靠这份。
+# 由 _test/prepare_offline_cache.py 生成；目录不存在就跳过，不影响正常打包。
+# 不含 NullMoth 驱动包（256 MB，单独按需下载）。
+_offline_seed = 'offline_cache'
+_datas = [
+    ('vendor', 'vendor'),
+    ('web', 'web'),
+    ('data/nvidia_gsp_ids.json', 'data'),
+]
+if os.path.isdir(_offline_seed):
+    _datas.append((_offline_seed, _offline_seed))
 
 a = Analysis(
     ['launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('vendor', 'vendor'),
-        ('web', 'web'),
-        ('data/nvidia_gsp_ids.json', 'data'),
-    ],
+    datas=_datas,
     hiddenimports=[
         # WMI：静态分析看不出 wmi.WMI() 里的动态导入，必须显式列
         'wmi',
