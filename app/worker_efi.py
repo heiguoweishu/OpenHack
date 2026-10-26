@@ -409,7 +409,7 @@ def do_build(args, bus):
     st.enter(0)
     bus.progress(2, "加载引擎")
     mods = autopilot.load_engine()
-    autopilot.install_answers(mods, prefs)
+    answers = autopilot.install_answers(mods, prefs)
     autopilot.patch_nvidia(mods, bus)
     # 断网时把本地缓存当成"已是最新版本"，否则会卡在拉取 dortania 版本信息那一步
     autopilot.patch_offline(mods, bus)
@@ -687,7 +687,27 @@ def _build_opencore_efi(mods, report, disabled, hardware_report, smbios_model,
 
     st.enter(4)
     _cleanup(result_dir, config_data, utils, bus)
+    _report_unanswered(answers, bus)
     st.finish_all()
+
+
+def _report_unanswered(answers, bus):
+    """把没能自动回答的提问写进日志。
+
+    这类提问会让引擎反复重问，最后表现为"卡住"或死锁报错。
+    与其让用户截图猜是哪个提问，不如构建结束时直接列出来。
+    """
+    items = getattr(answers, "unanswered", None) or []
+    uniq = []
+    for x in items:
+        if x not in uniq:
+            uniq.append(x)
+    if not uniq:
+        return
+    bus.log(f"有 {len(uniq)} 个交互式提问没能自动回答，引擎可能因此重复提问：", "warn")
+    for x in uniq[:6]:
+        bus.log("   • " + x, "warn")
+    bus.log("遇到这类问题请把这段日志发到仓库 Issues，可以针对性补上默认答案。", "warn")
 
 
 def _cleanup(result_dir, config_data, utils, bus):

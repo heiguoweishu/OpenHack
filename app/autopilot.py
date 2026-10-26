@@ -27,6 +27,7 @@ class AnswerBook:
     def __init__(self, prefs=None):
         self.prefs = prefs or {}
         self.calls = []
+        self.unanswered = []        # 没能给出答案的提问（构建结束时汇报）
 
     def __call__(self, prompt="", *a, **kw):
         text = (prompt or "")
@@ -57,8 +58,14 @@ class AnswerBook:
         #   "Enter the ID of the codec layout you want to use (default: 9)"
         match = re.search(r"default:\s*([^\s)\]}]+)", text, re.I)
         if match:
-            return match.group(1)
+            # 末尾的冒号/逗号/句号可能是提问的标点，不是值的一部分
+            value = match.group(1).rstrip(":;,.，。；：")
+            if value:
+                return value
 
+        # 实在没有默认值：记下来，构建结束时在日志里列出来，
+        # 免得下次又只能对着一张截图猜是哪个提问。
+        self.unanswered.append(key)
         return ""
 
 
