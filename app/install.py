@@ -487,8 +487,16 @@ def _stage_nullmoth(cfg, esp_root, bus, allow_cancel=None):
         bus.log("macOS 装好后，运行该目录下 README.txt 里的三条命令即可装上显卡驱动。", "info")
         return True
     except Exception as e:
-        # 驱动包装不上不影响分区本身 —— 用户随时可以自己下载
-        bus.log(f"驱动包准备失败（分区仍可用，可稍后自行下载）：{e}", "warn")
+        # 驱动包含 256 MB，下载失败很常见（网络/镜像/校验）。**这不影响已经写好的 EFI**：
+        # NullMoth 在 config.plist 里的那套开关（boot-args / SIP / SecureBootModel /
+        # IONDRVSupport Block / AMFIPass）是在生成 EFI 时落盘的，跟这个驱动包无关。
+        # 缺的只是"装进 macOS 的那份驱动本体"，用户随时能自己补，所以不能报错退出。
+        bus.log(f"驱动包下载失败：{str(e)[:100]}", "warn")
+        bus.log("这不影响分区与 EFI —— NullMoth 的 config 配置已经写好，只缺驱动包本体。", "warn")
+        bus.log("补救办法（任选其一）：", "warn")
+        bus.log("  1) 联网后重新执行本流程，只会补下载驱动包；", "warn")
+        bus.log("  2) 手动下载 nullmoth-nvidia-*.tar.gz，解压后按里面的 README.txt 装进 macOS；", "warn")
+        bus.log("  3) 驱动仓库：https://github.com/nullmoth/nvidia-macos-driver", "warn")
         return False
 
 

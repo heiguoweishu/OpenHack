@@ -15,6 +15,7 @@
   Enter the ID of the codec  -> "" 即默认 layout-id
 """
 import os
+import re
 import sys
 
 from . import paths
@@ -30,10 +31,17 @@ class AnswerBook:
     def __call__(self, prompt="", *a, **kw):
         text = (prompt or "")
         low = text.lower()
-        self.calls.append(text[:120])
-        if len(self.calls) > 200:
-            # 兜底：真发生了while True 空转，别把 CPU 烧到 100%
-            raise RuntimeError(f"交互式提问被反复调用，疑似死锁于：{text[:120]}")
+        key = text[:120]
+        # 同一个提问被反复问 = 我们给的答案引擎不接受。
+        # 按"同一问题出现次数"判断比"累计 200 次"准确得多：正常流程会问十几个不同的问题，
+        # 累计计数容易误伤，而同一个问题连问 6 次基本可以断定是答案不被接受。
+        if self.calls.count(key) >= 6:
+            raise RuntimeError(
+                f"同一个交互式提问已被重复 {self.calls.count(key)} 次，答案似乎不被接受：{key}")
+        if len(self.calls) > 300:
+            raise RuntimeError(f"交互式提问总数异常（{len(self.calls)} 次），疑似死循环：{key}")
+        self.calls.append(key)
+
         if "select audio kext" in low:
             return "1" if str(self.prefs.get("audioStrategy", "simplehda")).lower().startswith("oclp") else "2"
         if "force load" in low:
@@ -42,6 +50,15 @@ class AnswerBook:
             return "b"
         if "build efi for uefi" in low:
             return "yes"
+
+        # 通用兜底：引擎绝大多数提问都自带 "(default: X)"，直接采纳它的默认值。
+        # 之前这里对所有未识别的提问一律返回空串 —— 引擎不接受空值就会一直重问，
+        # 最后撞上死锁保护。ALC269 这一类需要选 codec layout 的声卡必然踩到：
+        #   "Enter the ID of the codec layout you want to use (default: 9)"
+        match = re.search(r"default:\s*([^\s)\]}]+)", text, re.I)
+        if match:
+            return match.group(1)
+
         return ""
 
 
