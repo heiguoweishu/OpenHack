@@ -190,7 +190,17 @@ def _verify_volume(root, expect_fs="FAT32", expect_label=None):
 
 
 def _unmount(disk_number, partition_number, letter, bus):
-    """归还临时盘符。这一步无论如何都要跑成功。"""
+    """归还临时盘符。
+
+    这一步之所以耗时，是因为 `Remove-PartitionAccessPath` 在卷被占用时会挂起
+    （杀软正在扫刚写进去的 EFI、资源管理器停在那个盘上、Windows 索引服务等），
+    而 `Update-HostStorageCache` 还要刷新整个存储缓存。原来超时给 180 秒，
+    表现就是界面上卡在"收尾并校验"整整三分钟，用户以为程序死了。
+
+    现在的做法：超时压到 45 秒，失败只警告不中断（EFI 和分区早已写完），
+    缓存刷新拆出来单独跑、失败直接忽略。
+    """
+    bus.log(f"正在归还临时盘符 {letter}:（个别机器要等几十秒，属正常）", "info")
     script = f"""
 $ErrorActionPreference = 'Stop'
 try {{
@@ -201,13 +211,19 @@ try {{
     if ($a -like '{letter}:*') {{ Remove-PartitionAccessPath -DiskNumber {int(disk_number)} -PartitionNumber {int(partition_number)} -AccessPath $a -ErrorAction SilentlyContinue }}
   }}
 }}
-Update-HostStorageCache
 """
     try:
-        ps.run(script, timeout=180)
+        ps.run(script, timeout=45)
         bus.log(f"已归还临时盘符 {letter}:", "info")
     except Exception as e:
-        bus.log(f"归还盘符 {letter}: 失败，请手动在磁盘管理里删除该盘符：{e}", "warn")
+        bus.log(f"归还盘符 {letter}: 失败或超时：{e}", "warn")
+        bus.log("  这不影响已经写入的 EFI 与分区。可以在「磁盘管理」里手动删除该盘符。", "warn")
+        return
+    # 刷新缓存：失败完全无所谓，别让它拖住整个流程
+    try:
+        ps.run("Update-HostStorageCache", timeout=15)
+    except Exception:
+        pass
 
 
 def _copy_tree_safely(src, dst, bus, label=""):
@@ -365,6 +381,7 @@ Update-HostStorageCache
 
     # ---- 5. 恢复镜像 ----
     st.enter(5)
+    downloaded = False
     if cfg.get("skipRecovery"):
         bus.log("按配置跳过恢复镜像下载", "info")
     else:
@@ -377,28 +394,49 @@ Update-HostStorageCache
             raise InstallError(f"无法从 Apple 获取恢复镜像：{e}")
         bus.log(f"Apple 返回：{rinfo['name']}（{rinfo['product']}）", "ok")
 
-        last = {"v": 0}
+        last = {"v": 0, "t": time.time(), "done": 0}
 
         def prog(done, total):
-            if total:
-                v = 30 + int(55 * done / total)
-                if v - last["v"] >= 1:
-                    last["v"] = v
-                    bus.progress(v, f"下载恢复镜像 {_human(done)} / {_human(total)}")
+            if not total:
+                return
+            v = 30 + int(55 * done / total)
+            now = time.time()
+            elapsed = now - last["t"]
+            # 带上速度：进度条不动时，用户至少能分辨是"很慢"还是"已经死了"
+            speed = (done - last["done"]) / elapsed if elapsed > 0 else 0
+            if v - last["v"] >= 1 or elapsed >= 5:
+                last["v"] = max(last["v"], v)
+                last["t"] = now
+                last["done"] = done
+                tail = f"，{_human(int(speed))}/s" if speed > 0 else ""
+                bus.progress(v, f"下载恢复镜像 {_human(done)} / {_human(total)}{tail}")
 
         try:
             res = recovery.download(rinfo, esp_root, progress=prog,
                                     cancel=(allow_cancel() if allow_cancel else None))
+            downloaded = True
+            bus.log(f"恢复镜像已就位：{os.path.basename(res['image'])} "
+                    f"（{res['chunks']} 个分片全部通过 Apple 签名校验，{_human(res['bytes'])}）", "ok")
+        except recovery.RecoveryStalled as e:
+            # 卡住时不能一直等：Apple 的 CDN 对部分地区会限速到几 KB/s 或直接挂起连接，
+            # 重试解决不了，只会让人盯着不动的进度条。放弃并给出可执行的替代方案。
+            bus.log(f"恢复镜像下载停滞，已放弃：{e}", "warn")
+            bus.log("EFI 与分区都已完成，只差这个镜像。可以这样补：", "warn")
+            bus.log("  1) 换网络（手机热点 / 有线）或换个时段重试；", "warn")
+            bus.log("  2) 重新执行时勾选「跳过恢复镜像」，改用 U 盘安装 macOS；", "warn")
+            bus.log(f"  3) 手动下载后放到：{os.path.join(esp_root, 'com.apple.recovery.boot')}", "warn")
+            bus.log(f"     镜像地址：{rinfo.get('image_url', '（Apple 未返回）')}", "warn")
+            bus.log("     注意：该地址需要 Apple 下发的 AssetToken，浏览器直接打开多为 403，"
+                    "优先用前两种办法。", "warn")
         except Exception as e:
             raise InstallError(f"恢复镜像下载失败：{e}")
-        bus.log(f"恢复镜像已就位：{os.path.basename(res['image'])} "
-                f"（{res['chunks']} 个分片全部通过 Apple 签名校验，{_human(res['bytes'])}）", "ok")
 
     # ---- 5b. NullMoth NVIDIA 驱动包 ----
     driver = _stage_nullmoth(cfg, esp_root, bus, allow_cancel)
 
     # ---- 6. 收尾 ----
     st.enter(6)
+    bus.log("正在做最后校验（EFI 分区的文件系统与内容）…", "info")
     try:
         _verify_volume(esp_root, expect_fs="FAT32")
         listing = sorted(os.listdir(esp_root))
@@ -416,7 +454,7 @@ Update-HostStorageCache
         "espPartition": esp_num,
         "espSize": esp_size,
         "installPartition": install_num,
-        "recoveryInstalled": not cfg.get("skipRecovery"),
+        "recoveryInstalled": downloaded,
         "driverInstalled": bool(driver),
         "partitions": final_disk["partitions"],
     }

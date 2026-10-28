@@ -232,6 +232,24 @@ probably corrupt or you're on an older build:
 **NVIDIA driver support** still requires downloading that ~256 MB driver package — it is not part of
 the offline assets.
 
+**The recovery image download never moves?**
+Apple's CDN throttles some routes to a few KB/s, or hangs the connection outright. The tool now
+detects this: **120 seconds with no new bytes**, or **3 failed resume attempts**, and it gives up and
+continues with the remaining steps (your EFI and partitions are not lost). The progress text also
+shows live throughput, so "slow" and "dead" look different.
+
+After giving up, the log offers three options:
+
+1. Retry on another network (phone hotspot / Ethernet) or at a different time of day;
+2. Re-run with "skip recovery image" checked and install macOS from a USB drive instead;
+3. Download it manually into `<EFI partition>\com.apple.recovery.boot` — note that URL needs the
+   AssetToken issued by Apple, so opening it in a browser usually returns 403. Prefer the first two.
+
+**Stuck on "final verification" for a long time?**
+That step releases the temporary drive letter. It hangs when the volume is held by antivirus or
+Explorer. The timeout is now 45 s and a failure is only a warning (the EFI and partitions are already
+written); the message tells you to remove the letter in Disk Management if needed.
+
 **Windows says "unknown publisher"?**
 The exe isn't code-signed. Verify a download by comparing against `SHA256SUMS.txt` from this
 repository's Releases.

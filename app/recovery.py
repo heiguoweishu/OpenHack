@@ -22,7 +22,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-TIMEOUT = 60
+# socket 级超时。原本给 60 秒，配合 8 次续传，一次网络停滞最长能让人干等 8 分钟以上，
+# 而界面上只表现为"进度条不动"—— 用户根本分不清是在下载还是已经死了。
+# 25 秒足够慢速连接读到下一个分片，超时立刻续传或放弃。
+TIMEOUT = 25
 MLB_ZERO = "00000000000000000"      # 通用主板序列号，Apple 会返回该机型最新的恢复镜像
 UA = "InternetRecovery/1.0"
 
@@ -51,11 +54,21 @@ HEADER = struct.Struct("<4sIBBBxQQQ")
 CHUNK = struct.Struct("<I32s")
 
 OPEN_TRIES = 4      # 瞬时故障重试次数
-RESUMES = 8         # 允许的续传次数
+RESUMES = 3         # 允许的续传次数（原本 8 次，配合 60 秒超时要干等 8 分钟）
+STALL_SECONDS = 120  # 连续这么久没有任何新数据就判定停滞，交给用户手动处理
 
 
 class RecoveryError(RuntimeError):
     pass
+
+
+class RecoveryStalled(RecoveryError):
+    """下载长时间没有进展。
+
+    单列一类是因为处理方式不同：别的错误该重试，这一类应该**直接放弃并告诉用户自己下**，
+    否则只会让人盯着不动的进度条。Apple 的 CDN 对部分地区的线路会限速到几 KB/s，
+    或者干脆挂起连接 —— 那不是靠重试能解决的。
+    """
 
 
 def ssl_context():
@@ -245,6 +258,20 @@ def download(info, dest_root, progress=None, cancel=None):
 
     r = _asset(info["image_url"], info["image_token"])
     last_report = 0.0
+    # 停滞判定：只要还在往前走就重置计时，完全不动了才放弃
+    stall = {"done": -1, "at": time.time()}
+
+    def _check_stall():
+        if done != stall["done"]:
+            stall["done"] = done
+            stall["at"] = time.time()
+            return
+        idle = time.time() - stall["at"]
+        if idle >= STALL_SECONDS:
+            raise RecoveryStalled(
+                f"连续 {int(idle)} 秒没有任何新数据"
+                f"（已下载 {done / 1048576:.0f} MB / 共 {total / 1048576:.0f} MB）")
+
     try:
         with open(img + ".part", "wb") as fh:
             for i, (size, sha) in enumerate(chunks, 1):
@@ -255,11 +282,13 @@ def download(info, dest_root, progress=None, cancel=None):
                         buf = _read_exact(r, size)
                         break
                     except (RecoveryError, OSError, http.client.HTTPException) as e:
-                        # 断流了就从最后一个校验通过的 chunk 往后要。
-                        # 每个字节仍然对着 Apple 的签名 chunklist 校验，续传改不了镜像内容。
+                        # 先看是不是彻底不动了 —— 这时候重试只是让用户多等几分钟
+                        _check_stall()
                         resumes += 1
                         if resumes > RESUMES:
-                            raise RecoveryError(f"{e}（已续传 {RESUMES} 次仍失败）") from None
+                            raise RecoveryStalled(
+                                f"{e}（续传 {RESUMES} 次仍未成功，"
+                                f"已下载 {done / 1048576:.0f} MB / 共 {total / 1048576:.0f} MB）") from None
                         try:
                             r.close()
                         except Exception:
